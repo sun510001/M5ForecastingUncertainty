@@ -2,8 +2,9 @@
 from __init__ import *
 
 
-class LoadData:
-    def reduce_mem_usage(self, df, verbose=True):
+class LoadData(object):
+    @staticmethod
+    def reduce_mem_usage(df, verbose=True):
         numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
         start_mem = df.memory_usage().sum() / 1024 ** 2
         for col in df.columns:
@@ -59,6 +60,15 @@ class LoadData:
         mods['snap_CA'] = 2
         mods['snap_TX'] = 2
         mods['snap_WI'] = 2
+        # mods['x_28_month_mean'] = 1
+        # mods['x_28_month_max'] = 1
+        # mods['x_28_month_min'] = 1
+        # mods['x_28_month_max_to_min_diff'] = 1
+        # mods['x_28_wk_mean'] = 1
+        # mods['x_28_wk_median'] = 1
+        # mods['x_28_wk_max'] = 1
+        # mods['x_28_wk_min'] = 1
+        # mods['x_28_wk_max_to_min_diff'] = 1
 
         calendar.drop(["event_name_1", "event_name_2", "event_type_1", "event_type_2", "date", "weekday"],
                       axis=1, inplace=True)
@@ -77,8 +87,10 @@ class LoadData:
         for col in new_columns:
             sales[col] = np.nan
         print("melting...")
-        sales = sales.melt(id_vars=["id", "item_id", "dept_id", "cat_id", "store_id", "state_id", "scale", "start"],
-                           var_name='d', value_name='demand')
+        sales = sales.melt(
+            id_vars=["id", "item_id", "dept_id", "cat_id", "store_id", "state_id", "scale1", "sales1", "start",
+                     "sales2", "scale2"],
+            var_name='d', value_name='demand')
 
         print("generating order")
         if start is not None:
@@ -93,7 +105,8 @@ class LoadData:
         print("loading calendar...")
         calendar = pd.read_csv("../input/m5-forecasting-uncertainty/calendar.csv")
         print("loading sales...")
-        sales = pd.read_csv("../input/walmartadd/sales.csv")
+        sales = pd.read_csv("../input/walmartadd/sales_aug.csv")
+        # sales = sales.sample(n=2)
         cols = ["item_id", "dept_id", "cat_id", "store_id", "state_id"]
         if categorize:
             for col in cols:
@@ -105,7 +118,7 @@ class LoadData:
 
         sales = self.preprocess_sales(sales, start=start, upper=upper)
         calendar = self.preprocess_calendar(calendar)
-        calendar = self.reduce_mem_usage(calendar)
+        calendar = LoadData.reduce_mem_usage(calendar)
         print("merge with calendar...")
         sales = sales.merge(calendar, on='d', how='left')
         del calendar
@@ -119,7 +132,7 @@ class LoadData:
         sales['n_week'] = (sales['nb'] - 1) // 7
         sales["nday"] -= 1
         mods['nday'] = 31
-        sales = self.reduce_mem_usage(sales)
+        sales = LoadData.reduce_mem_usage(sales)
         gc.collect()
         return sales
 
@@ -127,3 +140,4 @@ class LoadData:
 if __name__ == '__main__':
     load = LoadData()
     sales = load.make_dataset(categorize=CATEGORIZE, start=START, upper=UPPER)
+    print()
